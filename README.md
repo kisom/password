@@ -1,4 +1,5 @@
-# password: a command line password manager
+# password
+## a command line password manager
 
 This a personal password manager, written for me, that operates on the
 command line. It stores and retrieves passwords. There is planned
