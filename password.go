@@ -222,11 +222,29 @@ func importDatabase(filename, inFile string) {
 	}
 }
 
+func changePassword(fileName string) {
+	blob, err := decryptFile(fileName)
+	if err != nil {
+		errorf("%v", err)
+		os.Exit(1)
+	}
+	defer zero(blob)
+	zero(passphrase)
+	passphrase = nil
+	fmt.Println("Changing password...")
+	err = encryptFile(fileName, blob)
+	if err != nil {
+		errorf("%v", err)
+		os.Exit(1)
+	}
+}
+
 func main() {
 	defer zero(passphrase)
 
 	baseFile := filepath.Join(os.Getenv("HOME"), ".passwords.db")
 	fileName := flag.String("f", baseFile, "path to account store")
+	chPass := flag.Bool("c", false, "change password")
 	store := flag.Bool("s", false, "store a password")
 	overwrite := flag.Bool("o", false, "overwrite existing password")
 	remove := flag.Bool("r", false, "remove a password")
@@ -248,6 +266,9 @@ func main() {
 		return
 	} else if *list {
 		listRecords(*fileName)
+		return
+	} else if *chPass {
+		changePassword(*fileName)
 		return
 	} else if flag.NArg() != 1 {
 		errorf("please specify a single password to retrieve")
