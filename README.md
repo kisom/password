@@ -214,7 +214,7 @@ Now, you want to import this on another machine:
 
 ```
 $ password -import passwords.pem
-$ password example.db -l                   
+$ password -l                   
 Database passphrase: 
 Names:
         example.com
@@ -224,6 +224,15 @@ $
 
 (The password for this example store is "password1", and you can
 import it on your machine from PEM to see for yourself.)
+
+One of your friends now has a hot startup at example.io, and you want
+to add your account there:
+
+```
+ $ password -s example.io
+Database passphrase: 
+Password:
+```
 
 Time passes, and you get an email from example.com that they've had a
 database breach, and your password is compromised. As a safety
