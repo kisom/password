@@ -8,6 +8,11 @@ as well. By default, passwords are stored to `${HOME}/.passwords.db`
 the `-f` flag). This can be changed by passing an argument to the `-f`
 flag.
 
+This isn't designed for sharing passwords or anything terribly
+complicated. It's essentially a password-protected key-value
+store. It's not meant for using with a phone (I avoid using mine as
+much as possible).
+
 ## Usage
 
 To add a new password (password set):
