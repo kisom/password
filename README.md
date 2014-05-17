@@ -49,6 +49,15 @@ To view metadata when retrieving the password for *label* (password metadata):
 password -m label
 ```
 
+To enter multiple labels and passwords in the same session:
+
+```
+password -multi
+```
+
+Both entering metadata and multiple labels/passwords will stop when
+the first empty line is entered.
+
 
 ## Import / export
 

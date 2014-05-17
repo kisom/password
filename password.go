@@ -173,6 +173,7 @@ func storeMany(fileName string, overWrite bool) {
 		passwords = openFile(fileName)
 	}
 
+	fmt.Println("Use an empty name to indicate that you are done.")
 	for {
 		name, err := readpass.DefaultPasswordPrompt("Name: ")
 		if err != nil {
@@ -202,7 +203,7 @@ func storeMany(fileName string, overWrite bool) {
 			os.Exit(1)
 		} else if len(password) == 0 {
 			errorf("no password entered")
-			os.Exit(1)
+			continue
 		}
 		rec.Password = password
 		passwords[name] = rec
@@ -223,6 +224,7 @@ func storeMeta(fileName, name string) {
 		rec.Metadata = map[string][]byte{}
 	}
 
+	fmt.Println("Enter metadata; use an empty line to indicate that you are done.")
 	for {
 		line, err := readpass.DefaultPasswordPrompt("key = value: ")
 		if err != nil {
