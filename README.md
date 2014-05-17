@@ -53,6 +53,11 @@ file is saved. The salt is stored as the first 32 bytes of the file.
 I've taken care to attempt zeroing memory and passphrases where I can,
 but there are no guarantees this is effective.
 
+## See also
+
+* [OTPC](https://github.com/kisom/otpc) -- a one-time password /
+  two-factor command line client.
+
 
 ## License
 
