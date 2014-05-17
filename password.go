@@ -10,6 +10,7 @@ import (
 	"io/ioutil"
 	"os"
 	"path/filepath"
+	"strings"
 
 	"github.com/gokyle/readpass"
 )
@@ -161,6 +162,90 @@ func storeRecord(fileName, name string, overWrite bool) {
 	saveFile(fileName, passwords)
 }
 
+func storeMany(fileName string, overWrite bool) {
+	var passwords = Passwords{}
+	defer passwords.Zero()
+
+	if _, err := os.Stat(fileName); err != nil && !os.IsNotExist(err) {
+		errorf("Failed to open account store: %v", err)
+		os.Exit(1)
+	} else if err == nil {
+		passwords = openFile(fileName)
+	}
+
+	for {
+		name, err := readpass.DefaultPasswordPrompt("Name: ")
+		if err != nil {
+			errorf("%v", err)
+			break
+		} else if name == "" {
+			break
+		}
+
+		rec, ok := passwords[name]
+		if ok && len(rec.Password) != 0 {
+			if !overWrite {
+				errorf("entry exists, not forcing overwrite")
+				os.Exit(1)
+			} else {
+				errorf("*** warning: overwriting password")
+			}
+		} else if !ok {
+			rec = &Record{
+				Name: name,
+			}
+		}
+
+		password, err := readpass.PasswordPromptBytes("Password: ")
+		if err != nil {
+			errorf("%v", err)
+			os.Exit(1)
+		} else if len(password) == 0 {
+			errorf("no password entered")
+			os.Exit(1)
+		}
+		rec.Password = password
+		passwords[name] = rec
+	}
+	saveFile(fileName, passwords)
+}
+
+func storeMeta(fileName, name string) {
+	passwords := openFile(fileName)
+	defer passwords.Zero()
+	rec, ok := passwords[name]
+	if !ok {
+		errorf("entry not found")
+		os.Exit(1)
+	}
+
+	if rec.Metadata == nil {
+		rec.Metadata = map[string][]byte{}
+	}
+
+	for {
+		line, err := readpass.DefaultPasswordPrompt("key = value: ")
+		if err != nil {
+			errorf("%v", err)
+			break
+		} else if line == "" {
+			break
+		}
+
+		meta := strings.SplitN(line, "=", 2)
+		if len(meta) < 2 {
+			errorf("Metadata should be in the form 'key=value'")
+			continue
+		}
+
+		key := strings.TrimSpace(meta[0])
+		val := strings.TrimSpace(meta[1])
+		rec.Metadata[key] = []byte(val)
+	}
+	passwords[name] = rec
+	saveFile(fileName, passwords)
+}
+
 const pemLabel = "PASSWORD STORE"
 
 func exportDatabase(filename, outFile string) {
@@ -246,11 +331,13 @@ func main() {
 	fileName := flag.String("f", baseFile, "path to account store")
 	chPass := flag.Bool("c", false, "change password")
 	store := flag.Bool("s", false, "store a password")
-	overwrite := flag.Bool("o", false, "overwrite existing password")
+	overWrite := flag.Bool("o", false, "overwrite existing password")
 	remove := flag.Bool("r", false, "remove a password")
 	list := flag.Bool("l", false, "list passwords")
 	doExport := flag.Bool("export", false, "export database in PEM format to stdout")
 	doImport := flag.Bool("import", false, "import database from PEM format")
+	multi := flag.Bool("multi", false, "enter multiple passwords")
+	meta := flag.Bool("m", false, "store metadata instead of passwords")
 	flag.Parse()
 
 	if *doExport || *doImport {
@@ -270,18 +357,23 @@ func main() {
 	} else if *chPass {
 		changePassword(*fileName)
 		return
+	} else if *multi {
+		storeMany(*fileName, *overWrite)
+		return
 	} else if flag.NArg() != 1 {
 		errorf("please specify a single password to retrieve")
 		os.Exit(1)
 	}
 	name := flag.Arg(0)
 
-	if *store {
-		storeRecord(*fileName, name, *overwrite)
+	if *store && !*meta {
+		storeRecord(*fileName, name, *overWrite)
+	} else if *store && *meta {
+		storeMeta(*fileName, name)
 	} else if *remove {
 		removeRecord(*fileName, name)
 	} else {
 		// TODO(kyle): store metadata
-		retrieveRecord(*fileName, name, false)
+		retrieveRecord(*fileName, name, *meta)
 	}
 }

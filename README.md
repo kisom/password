@@ -2,9 +2,8 @@
 ## a command line password manager
 
 This a personal password manager, written for me, that operates on the
-command line. It stores and retrieves passwords. There is planned
-support for record metadata later on, but it isn't something I've
-needed just yet.
+command line. It stores and retrieves passwords and optional metadata
+as well.
 
 ## Usage
 
@@ -36,6 +35,18 @@ To change the master password for the password store:
 
 ```
 password -c
+```
+
+To add metadata to *label* (password store metadata):
+
+```
+password -s -m label
+```
+
+To view metadata when retrieving the password for *label* (password metadata):
+
+```
+password -m label
 ```
 
 
