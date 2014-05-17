@@ -10,6 +10,7 @@ import (
 	"io/ioutil"
 	"os"
 	"path/filepath"
+	"sort"
 	"strings"
 
 	"github.com/gokyle/readpass"
@@ -111,9 +112,16 @@ func listRecords(fileName string) {
 		fmt.Printf("no passwords")
 		return
 	}
-	fmt.Printf("Names:")
+
+	var names = make([]string, 0, len(passwords))
+	fmt.Println("Names:")
 	for k, _ := range passwords {
-		fmt.Printf("\t%s\n", k)
+		names = append(names, k)
+	}
+	sort.Strings(names)
+
+	for _, name := range names {
+		fmt.Printf("\t%s\n", name)
 	}
 }
 
@@ -123,6 +131,7 @@ func removeRecord(fileName, name string) {
 
 	delete(passwords, name)
 	saveFile(fileName, passwords)
+	fmt.Println("Done.")
 }
 
 func storeRecord(fileName, name string, overWrite bool) {
