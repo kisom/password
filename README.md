@@ -32,6 +32,13 @@ To remove the password for *label* (password remove):
 password -r label
 ```
 
+To change the master password for the password store:
+
+```
+password -c
+```
+
+
 ## Import / export
 
 The password store can be imported from PEM or exported to PEM. Pass
