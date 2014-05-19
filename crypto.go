@@ -87,7 +87,7 @@ func decryptFile(filename string) (data []byte, err error) {
 
 	salt := data[:saltSize]
 	data = data[saltSize:]
-	passphrase, err = readpass.PasswordPromptBytes("Database passphrase: ")
+	passphrase, err = readpass.PasswordPromptBytes("Password store passphrase: ")
 	if err != nil {
 		data = nil
 		return
@@ -101,7 +101,7 @@ func decryptFile(filename string) (data []byte, err error) {
 
 	data, ok := Decrypt(key, data)
 	if !ok {
-		err = errors.New("password: failed to decrypt database")
+		err = errors.New("password: failed to decrypt password store")
 	}
 	return
 }
@@ -115,7 +115,7 @@ func encryptFile(filename string, encoded []byte) (err error) {
 	defer zero(encoded)
 
 	if passphrase == nil {
-		passphrase, err = readpass.PasswordPromptBytes("Database passphrase: ")
+		passphrase, err = readpass.PasswordPromptBytes("Password store passphrase: ")
 		if err != nil {
 			return
 		}

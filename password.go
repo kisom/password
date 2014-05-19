@@ -86,7 +86,7 @@ func openFile(fileName string) Passwords {
 func saveFile(fileName string, passwords Passwords) {
 	encoded, err := json.Marshal(passwords)
 	if err != nil {
-		errorf("Failed to serialise accounts: %v", err)
+		errorf("Failed to serialise password store: %v", err)
 		os.Exit(1)
 	}
 	defer zero(encoded)
@@ -144,7 +144,7 @@ func storeRecord(fileName, name string, overWrite bool) {
 	defer passwords.Zero()
 
 	if _, err := os.Stat(fileName); err != nil && !os.IsNotExist(err) {
-		errorf("Failed to open account store: %v", err)
+		errorf("Failed to open password store: %v", err)
 		os.Exit(1)
 	} else if err == nil {
 		passwords = openFile(fileName)
@@ -181,7 +181,7 @@ func storeMany(fileName string, overWrite bool) {
 	defer passwords.Zero()
 
 	if _, err := os.Stat(fileName); err != nil && !os.IsNotExist(err) {
-		errorf("Failed to open account store: %v", err)
+		errorf("Failed to open password store: %v", err)
 		os.Exit(1)
 	} else if err == nil {
 		passwords = openFile(fileName)
@@ -353,14 +353,14 @@ func main() {
 	defer zero(passphrase)
 
 	baseFile := filepath.Join(os.Getenv("HOME"), ".passwords.db")
-	fileName := flag.String("f", baseFile, "path to account store")
+	fileName := flag.String("f", baseFile, "path to password store")
 	chPass := flag.Bool("c", false, "change password")
 	store := flag.Bool("s", false, "store a password")
 	overWrite := flag.Bool("o", false, "overwrite existing password")
 	remove := flag.Bool("r", false, "remove a password")
 	list := flag.Bool("l", false, "list passwords")
-	doExport := flag.Bool("export", false, "export database in PEM format to stdout")
-	doImport := flag.Bool("import", false, "import database from PEM format")
+	doExport := flag.Bool("export", false, "export password store in PEM format")
+	doImport := flag.Bool("import", false, "import password store from PEM format")
 	multi := flag.Bool("multi", false, "enter multiple passwords")
 	meta := flag.Bool("m", false, "store metadata instead of passwords")
 	clip := flag.Bool("x", false, "show password in a format suitable for exporting to clipboard")

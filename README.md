@@ -107,8 +107,8 @@ $
 If you list the accounts stored:
 
 ```
-$ password -l    
-Database passphrase: 
+$ password -l
+Password store passphrase: 
 Names:
         example.com
         example.net
@@ -119,7 +119,7 @@ You can enter the security questions for example.com:
 
 ```
 $ password -s -m example.com
-Database passphrase: 
+Password store passphrase: 
 Enter metadata; use an empty line to indicate that you are done.
 key = value: What is your name? = Sir Lancelot of Camelot
 key = value: What is your quest? = To seek the Holy Grail
@@ -132,7 +132,7 @@ By default, `password` won't show metadata when retrieving a password:
 
 ```
 $ password example.com
-Database passphrase: 
+Password store passphrase: 
 Password: "password2"
 $
 ```
@@ -141,11 +141,25 @@ You can show metadata with the `-m` flag:
 
 ```
 $ password -m example.com
-Database passphrase: 
+Password store passphrase: 
 Password: "password2"
 What is your quest?="To seek the Holy Grail"
 What is your favourite colour?="blue"
 What is your name?="Sir Lancelot of Camelot"
+```
+
+Perhaps you want to copy the password to the clipboard on your OpenBSD machine:
+
+```
+$ password -x example.net | xclip
+Password store passphrase: %
+```
+
+Over on your Mac, you can do the same with:
+
+```
+password -x example.net | pbcopy
+Password store passphrase: %
 ```
 
 Meanwhile, it looks like example.org has changed their privacy policy,
@@ -154,7 +168,7 @@ your account there. Time to remove it from `password`:
 
 ```
 $ password -r example.org
-Database passphrase:
+Password store passphrase:
 Done.
 $
 ```
@@ -163,7 +177,7 @@ If you list your accounts again:
 
 ```
  $ password -l
-Database passphrase: 
+Password store passphrase: 
 Names:
         example.com
         example.net
@@ -174,9 +188,9 @@ Some time passes, and you think you should change your master password.
 
 ```
 $ password -c
-Database passphrase: 
+Password store passphrase: 
 Changing password...
-Database passphrase:
+Password store passphrase:
 $
 ```
 
@@ -226,7 +240,7 @@ Now, you want to import this on another machine:
 ```
 $ password -import passwords.pem
 $ password -l                   
-Database passphrase: 
+Password store passphrase: 
 Names:
         example.com
         example.net
@@ -241,7 +255,7 @@ to add your account there:
 
 ```
  $ password -s example.io
-Database passphrase: 
+Password store passphrase: 
 Password:
 ```
 
@@ -251,7 +265,7 @@ measure, `password` won't let you just overwrite a password:
 
 ```
 $ password -s example.com
-Database passphrase: 
+Password store passphrase: 
 [!] entry exists, not forcing overwrite
 $
 ```
@@ -261,7 +275,7 @@ You can tell `password` to overwrite the stored passphrase with the
 
 ```
  $ password -s -o example.com
-Database passphrase: 
+Password store passphrase: 
 [!] *** warning: overwriting password
 Password:
 $
