@@ -42,7 +42,7 @@ func (r *Record) Zero() {
 
 func (r *Record) Display(showMetadata, clipExport bool) {
 	if !clipExport {
-		fmt.Printf("Password: %q\n", r.Password)
+		fmt.Printf("Password: %s\n", r.Password)
 	} else {
 		fmt.Printf("%s", r.Password)
 		return
@@ -99,13 +99,13 @@ func openFile(fileName string) Passwords {
 
 		for k, _ := range old {
 			if old[k].Timestamp == 0 {
-				old[k].Timestamp = time.Now().UnixNano()
+				old[k].Timestamp = time.Now().Unix()
 			}
 		}
 
 		fmt.Println("Migrating from version 0 to version 1.")
 		passwords.Version = version
-		passwords.Timestamp = time.Now().UnixNano()
+		passwords.Timestamp = time.Now().Unix()
 		passwords.Store = old
 		saveFile(fileName, passwords)
 	}
@@ -202,7 +202,7 @@ func removeMeta(fileName, name string) {
 		delete(rec.Metadata, key)
 		fmt.Println("Deleted key", key)
 	}
-	rec.Timestamp = time.Now().UnixNano()
+	rec.Timestamp = time.Now().Unix()
 	saveFile(fileName, passwords)
 }
 
@@ -240,7 +240,7 @@ func storeRecord(fileName, name string, overWrite bool) {
 	}
 	defer zero(password)
 	rec.Password = password
-	rec.Timestamp = time.Now().UnixNano()
+	rec.Timestamp = time.Now().Unix()
 
 	saveFile(fileName, passwords)
 }
@@ -289,7 +289,7 @@ func storeMany(fileName string, overWrite bool) {
 			continue
 		}
 		rec.Password = password
-		rec.Timestamp = time.Now().UnixNano()
+		rec.Timestamp = time.Now().Unix()
 		passwords.Store[name] = rec
 	}
 	saveFile(fileName, passwords)
@@ -337,7 +337,7 @@ func storeMeta(fileName, name string) {
 		val := strings.TrimSpace(meta[1])
 		rec.Metadata[key] = []byte(val)
 	}
-	rec.Timestamp = time.Now().UnixNano()
+	rec.Timestamp = time.Now().Unix()
 	saveFile(fileName, passwords)
 }
 
