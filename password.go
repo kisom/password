@@ -35,8 +35,13 @@ func (r *Record) Zero() {
 	}
 }
 
-func (r *Record) Display(showMetadata bool) {
-	fmt.Printf("Password: %q\n", r.Password)
+func (r *Record) Display(showMetadata, clipExport bool) {
+	if !clipExport {
+		fmt.Printf("Password: %q\n", r.Password)
+	} else {
+		fmt.Printf("%s", r.Password)
+		return
+	}
 	if showMetadata {
 		for k, v := range r.Metadata {
 			fmt.Printf("%s=%q\n", k, v)
@@ -93,7 +98,7 @@ func saveFile(fileName string, passwords Passwords) {
 	}
 }
 
-func retrieveRecord(fileName, name string, showMetadata bool) {
+func retrieveRecord(fileName, name string, showMetadata, clipExport bool) {
 	passwords := openFile(fileName)
 	defer passwords.Zero()
 	rec, ok := passwords[name]
@@ -101,7 +106,7 @@ func retrieveRecord(fileName, name string, showMetadata bool) {
 		errorf("entry not found")
 		os.Exit(1)
 	}
-	rec.Display(showMetadata)
+	rec.Display(showMetadata, clipExport)
 }
 
 func listRecords(fileName string) {
@@ -225,8 +230,17 @@ func storeMeta(fileName, name string) {
 	defer passwords.Zero()
 	rec, ok := passwords[name]
 	if !ok {
-		errorf("entry not found")
-		os.Exit(1)
+		rec = &Record{Name: name}
+		password, err := readpass.PasswordPromptBytes("Password: ")
+		if err != nil {
+			errorf("%v", err)
+			os.Exit(1)
+		} else if len(password) == 0 {
+			errorf("no password entered")
+			os.Exit(1)
+		}
+		rec.Password = password
+		defer zero(password)
 	}
 
 	if rec.Metadata == nil {
@@ -349,6 +363,7 @@ func main() {
 	doImport := flag.Bool("import", false, "import database from PEM format")
 	multi := flag.Bool("multi", false, "enter multiple passwords")
 	meta := flag.Bool("m", false, "store metadata instead of passwords")
+	clip := flag.Bool("x", false, "show password in a format suitable for exporting to clipboard")
 	flag.Parse()
 
 	if *doExport || *doImport {
@@ -384,7 +399,6 @@ func main() {
 	} else if *remove {
 		removeRecord(*fileName, name)
 	} else {
-		// TODO(kyle): store metadata
-		retrieveRecord(*fileName, name, *meta)
+		retrieveRecord(*fileName, name, *meta, *clip)
 	}
 }

@@ -27,6 +27,12 @@ To retrieve the password for *label*:
 password label
 ```
 
+To retrieve a password in a form suitable for exporting to the clipboard:
+
+```
+password -x label
+```
+
 To change the password for *label* (password set overwriting):
 
 ```
