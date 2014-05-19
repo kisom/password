@@ -326,6 +326,28 @@ file is saved. The salt is stored as the first 32 bytes of the file.
 I've taken care to attempt zeroing memory and passphrases where I can,
 but there are no guarantees this is effective.
 
+### JSON layout
+
+```
+{
+    "Version": 1,
+    "Timestamp": 1400529440,
+    "Store": {
+        "example.net": {
+            "Timestamp": 1400529440,
+            "Password": "cGFzc3dvcmQ=",
+            "Metadata": {
+                "email": "me@example.net"
+            }
+        },
+        "example.org": {
+            "Timestamp":  1400537177,
+            "Password": "cGFzc3dvcmQy"
+        }
+    }
+}
+```
+
 
 ## See also
 
