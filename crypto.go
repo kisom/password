@@ -95,13 +95,13 @@ func decryptFile(filename string) (data []byte, err error) {
 
 	key := deriveKey(passphrase, salt)
 	if key == nil {
-		err = errors.New("otpc: failed to derive key with Scrypt")
+		err = errors.New("password: failed to derive key with Scrypt")
 		return
 	}
 
 	data, ok := Decrypt(key, data)
 	if !ok {
-		err = errors.New("otpc: failed to decrypt accounts")
+		err = errors.New("password: failed to decrypt database")
 	}
 	return
 }
@@ -109,7 +109,7 @@ func decryptFile(filename string) (data []byte, err error) {
 func encryptFile(filename string, encoded []byte) (err error) {
 	salt := newSalt()
 	if salt == nil {
-		err = errors.New("otpc: failed to generate new salt")
+		err = errors.New("password: failed to generate new salt")
 		return
 	}
 	defer zero(encoded)
@@ -123,14 +123,14 @@ func encryptFile(filename string, encoded []byte) (err error) {
 
 	key := deriveKey(passphrase, salt)
 	if key == nil {
-		err = errors.New("otpc: failed to derive key with Scrypt")
+		err = errors.New("password: failed to derive key with Scrypt")
 		return
 	}
 
 	data, ok := Encrypt(key, encoded)
 	if !ok {
 		data = nil
-		err = errors.New("otpc: failed to encrypt data")
+		err = errors.New("password: failed to encrypt data")
 		return
 	}
 
