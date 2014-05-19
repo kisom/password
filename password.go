@@ -12,16 +12,21 @@ import (
 	"path/filepath"
 	"sort"
 	"strings"
+	"time"
 
 	"github.com/gokyle/readpass"
 )
 
+const timeFormat = "2006-01-2 15:04 MST"
+const version = 1
+
 var passphrase []byte
 
 type Record struct {
-	Name     string
-	Password []byte
-	Metadata map[string][]byte
+	Name      string
+	Timestamp int64
+	Password  []byte
+	Metadata  map[string][]byte
 }
 
 func (r *Record) Zero() {
@@ -43,6 +48,8 @@ func (r *Record) Display(showMetadata, clipExport bool) {
 		return
 	}
 	if showMetadata {
+		fmt.Printf("Timestamp: %d (%s)", r.Timestamp,
+			time.Unix(r.Timestamp, 0).Format(timeFormat))
 		for k, v := range r.Metadata {
 			fmt.Printf("%s=%q\n", k, v)
 		}
@@ -57,11 +64,17 @@ func errorf(m string, args ...interface{}) {
 	fmt.Fprintf(os.Stderr, m, args...)
 }
 
-type Passwords map[string]*Record
+type Passwords struct {
+	Version   int
+	Timestamp int64
+	Store     map[string]*Record
+}
+
+type PasswordsV0 map[string]*Record
 
 func (p Passwords) Zero() {
-	for k := range p {
-		p[k].Zero()
+	for k := range p.Store {
+		p.Store[k].Zero()
 	}
 }
 
@@ -76,6 +89,26 @@ func openFile(fileName string) Passwords {
 
 	var passwords Passwords
 	err = json.Unmarshal(fileData, &passwords)
+	if err != nil || passwords.Version != version {
+		var old PasswordsV0
+		err = json.Unmarshal(fileData, &old)
+		if err != nil {
+			errorf("Failed to open password file: %v", err)
+			os.Exit(1)
+		}
+
+		for k, _ := range old {
+			if old[k].Timestamp == 0 {
+				old[k].Timestamp = time.Now().UnixNano()
+			}
+		}
+
+		fmt.Println("Migrating from version 0 to version 1.")
+		passwords.Version = version
+		passwords.Timestamp = time.Now().UnixNano()
+		passwords.Store = old
+		saveFile(fileName, passwords)
+	}
 	if err != nil {
 		errorf("Failed to open password file: %v", err)
 		os.Exit(1)
@@ -101,7 +134,7 @@ func saveFile(fileName string, passwords Passwords) {
 func retrieveRecord(fileName, name string, showMetadata, clipExport bool) {
 	passwords := openFile(fileName)
 	defer passwords.Zero()
-	rec, ok := passwords[name]
+	rec, ok := passwords.Store[name]
 	if !ok {
 		errorf("entry not found")
 		os.Exit(1)
@@ -113,14 +146,14 @@ func listRecords(fileName string) {
 	passwords := openFile(fileName)
 	defer passwords.Zero()
 
-	if len(passwords) == 0 {
+	if len(passwords.Store) == 0 {
 		fmt.Printf("no passwords")
 		return
 	}
 
-	var names = make([]string, 0, len(passwords))
+	var names = make([]string, 0, len(passwords.Store))
 	fmt.Println("Names:")
-	for k, _ := range passwords {
+	for k, _ := range passwords.Store {
 		names = append(names, k)
 	}
 	sort.Strings(names)
@@ -134,7 +167,7 @@ func removeRecord(fileName, name string) {
 	passwords := openFile(fileName)
 	defer passwords.Zero()
 
-	delete(passwords, name)
+	delete(passwords.Store, name)
 	saveFile(fileName, passwords)
 	fmt.Println("Done.")
 }
@@ -143,9 +176,10 @@ func removeMeta(fileName, name string) {
 	passwords := openFile(fileName)
 	defer passwords.Zero()
 
-	rec, ok := passwords[name]
+	rec, ok := passwords.Store[name]
 	if !ok || rec.Metadata == nil {
 		errorf("Nothing stored under the label %s", name)
+		return
 	}
 
 	var keys = make([]string, 0, len(rec.Metadata))
@@ -168,6 +202,7 @@ func removeMeta(fileName, name string) {
 		delete(rec.Metadata, key)
 		fmt.Println("Deleted key", key)
 	}
+	rec.Timestamp = time.Now().UnixNano()
 	saveFile(fileName, passwords)
 }
 
@@ -182,7 +217,7 @@ func storeRecord(fileName, name string, overWrite bool) {
 		passwords = openFile(fileName)
 	}
 
-	rec, ok := passwords[name]
+	rec, ok := passwords.Store[name]
 	if ok {
 		if !overWrite {
 			errorf("entry exists, not forcing overwrite")
@@ -204,6 +239,7 @@ func storeRecord(fileName, name string, overWrite bool) {
 	}
 	defer zero(password)
 	rec.Password = password
+	rec.Timestamp = time.Now().UnixNano()
 
 	saveFile(fileName, passwords)
 }
@@ -229,7 +265,7 @@ func storeMany(fileName string, overWrite bool) {
 			break
 		}
 
-		rec, ok := passwords[name]
+		rec, ok := passwords.Store[name]
 		if ok && len(rec.Password) != 0 {
 			if !overWrite {
 				errorf("entry exists, not forcing overwrite")
@@ -252,7 +288,8 @@ func storeMany(fileName string, overWrite bool) {
 			continue
 		}
 		rec.Password = password
-		passwords[name] = rec
+		rec.Timestamp = time.Now().UnixNano()
+		passwords.Store[name] = rec
 	}
 	saveFile(fileName, passwords)
 }
@@ -260,7 +297,7 @@ func storeMany(fileName string, overWrite bool) {
 func storeMeta(fileName, name string) {
 	passwords := openFile(fileName)
 	defer passwords.Zero()
-	rec, ok := passwords[name]
+	rec, ok := passwords.Store[name]
 	if !ok {
 		rec = &Record{Name: name}
 		password, err := readpass.PasswordPromptBytes("Password: ")
@@ -299,7 +336,7 @@ func storeMeta(fileName, name string) {
 		val := strings.TrimSpace(meta[1])
 		rec.Metadata[key] = []byte(val)
 	}
-	passwords[name] = rec
+	rec.Timestamp = time.Now().UnixNano()
 	saveFile(fileName, passwords)
 }
 
