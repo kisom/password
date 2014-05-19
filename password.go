@@ -227,6 +227,7 @@ func storeRecord(fileName, name string, overWrite bool) {
 		}
 	} else {
 		rec = &Record{Name: name}
+		passwords.Store[name] = rec
 	}
 
 	password, err := readpass.PasswordPromptBytes("Password: ")
