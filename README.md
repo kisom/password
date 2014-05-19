@@ -250,6 +250,27 @@ $
 (The password for this example store is "password1", and you can
 import it on your machine from PEM to see for yourself.)
 
+It looks like your favourite colour is now yellow, so you'll want to
+remove that bit of metadata and re-add it:
+
+```
+$ password -r -m example.com
+Password store passphrase: 
+Keys:
+        What is your favourite colour?
+        What is your name?
+        What is your quest?
+Remove key: What is your favourite colour?
+Deleted key What is your favourite colour?
+Remove key:
+$ password -s -m example.com
+Password store passphrase: 
+Enter metadata; use an empty line to indicate that you are done.
+key = value: What is your favourite colour? = yellow
+key = value: 
+$
+```
+
 One of your friends now has a hot startup at example.io, and you want
 to add your account there:
 

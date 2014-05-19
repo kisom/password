@@ -139,6 +139,38 @@ func removeRecord(fileName, name string) {
 	fmt.Println("Done.")
 }
 
+func removeMeta(fileName, name string) {
+	passwords := openFile(fileName)
+	defer passwords.Zero()
+
+	rec, ok := passwords[name]
+	if !ok || rec.Metadata == nil {
+		errorf("Nothing stored under the label %s", name)
+	}
+
+	var keys = make([]string, 0, len(rec.Metadata))
+	for k, _ := range rec.Metadata {
+		keys = append(keys, k)
+	}
+	sort.Strings(keys)
+	fmt.Println("Keys:")
+	for i := range keys {
+		fmt.Printf("\t%s\n", keys[i])
+	}
+	for {
+		key, err := readpass.DefaultPasswordPrompt("Remove key: ")
+		if err != nil {
+			errorf("Failed to read key: %v", err)
+			continue
+		} else if key == "" {
+			break
+		}
+		delete(rec.Metadata, key)
+		fmt.Println("Deleted key", key)
+	}
+	saveFile(fileName, passwords)
+}
+
 func storeRecord(fileName, name string, overWrite bool) {
 	var passwords = Passwords{}
 	defer passwords.Zero()
@@ -150,7 +182,7 @@ func storeRecord(fileName, name string, overWrite bool) {
 		passwords = openFile(fileName)
 	}
 
-	_, ok := passwords[name]
+	rec, ok := passwords[name]
 	if ok {
 		if !overWrite {
 			errorf("entry exists, not forcing overwrite")
@@ -158,6 +190,8 @@ func storeRecord(fileName, name string, overWrite bool) {
 		} else {
 			errorf("*** warning: overwriting password")
 		}
+	} else {
+		rec = &Record{Name: name}
 	}
 
 	password, err := readpass.PasswordPromptBytes("Password: ")
@@ -169,10 +203,8 @@ func storeRecord(fileName, name string, overWrite bool) {
 		os.Exit(1)
 	}
 	defer zero(password)
-	passwords[name] = &Record{
-		Name:     name,
-		Password: password,
-	}
+	rec.Password = password
+
 	saveFile(fileName, passwords)
 }
 
@@ -397,7 +429,11 @@ func main() {
 	} else if *store && *meta {
 		storeMeta(*fileName, name)
 	} else if *remove {
-		removeRecord(*fileName, name)
+		if *meta {
+			removeMeta(*fileName, name)
+		} else {
+			removeRecord(*fileName, name)
+		}
 	} else {
 		retrieveRecord(*fileName, name, *meta, *clip)
 	}
