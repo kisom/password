@@ -1,4 +1,4 @@
-// Command line password manager.
+// password is a command line password manager built to my specifications.
 package main
 
 import (
@@ -20,8 +20,10 @@ import (
 const timeFormat = "2006-01-2 15:04 MST"
 const version = 1
 
-var passphrase []byte
-
+// A Record contains an entry for a password. The timestamp is updated
+// on any modification to the record (password or metadata
+// changes). Metadata is stored as a byte slice to allow for zeroising
+// when tearing down the record.
 type Record struct {
 	Name      string
 	Timestamp int64
@@ -29,6 +31,9 @@ type Record struct {
 	Metadata  map[string][]byte
 }
 
+// Zero ensures that a record's entries are zeroised in memory. See
+// the comment on zero in crypto.go for a longer discussion on this
+// topic.
 func (r *Record) Zero() {
 	if r == nil {
 		return
@@ -40,6 +45,8 @@ func (r *Record) Zero() {
 	}
 }
 
+// Display prints out the record. clipExport changes the output format
+// of the record: only the password (sans trailing newline).
 func (r *Record) Display(showMetadata, clipExport bool) {
 	if !clipExport {
 		fmt.Printf("Password: %s\n", r.Password)
@@ -64,22 +71,27 @@ func errorf(m string, args ...interface{}) {
 	fmt.Fprintf(os.Stderr, m, args...)
 }
 
+// Passwords contains the in-memory representation of the password
+// store. Version contains the password store format version (not the
+// program version). Timestamp is updated when the password store is
+// being written to disk.
 type Passwords struct {
 	Version   int
 	Timestamp int64
 	Store     map[string]*Record
 }
 
-type PasswordsV0 map[string]*Record
-
+// Zero attempts to zeroise each record in the store. See the previous
+// discussions on the subject.
 func (p Passwords) Zero() {
 	for k := range p.Store {
 		p.Store[k].Zero()
 	}
 }
 
-var passwords Passwords
-
+// openFile decrypts and parses the password store from disk. The
+// actual decryption is handled by functions defined in crypto.go. It
+// will upgrade old password stores as required.
 func openFile(fileName string) Passwords {
 	fileData, err := decryptFile(fileName)
 	if err != nil {
@@ -90,23 +102,11 @@ func openFile(fileName string) Passwords {
 	var passwords Passwords
 	err = json.Unmarshal(fileData, &passwords)
 	if err != nil || passwords.Version != version {
-		var old PasswordsV0
-		err = json.Unmarshal(fileData, &old)
+		passwords, err = migrateStore(fileData)
 		if err != nil {
-			errorf("Failed to open password file: %v", err)
+			errorf("Failed to open store: %v\n", err)
 			os.Exit(1)
 		}
-
-		for k, _ := range old {
-			if old[k].Timestamp == 0 {
-				old[k].Timestamp = time.Now().Unix()
-			}
-		}
-
-		fmt.Println("Migrating from version 0 to version 1.")
-		passwords.Version = version
-		passwords.Timestamp = time.Now().Unix()
-		passwords.Store = old
 		saveFile(fileName, passwords)
 	}
 	if err != nil {
@@ -116,21 +116,80 @@ func openFile(fileName string) Passwords {
 	return passwords
 }
 
+var migrations = map[int]func([]byte) (Password, error){}
+
+// migrateStore brings old stores to the current format. This isn't
+// particularly efficient, as the file is parsed twice more here
+// (using the decrypted data): once to retrieve the version, and once
+// to actually parse the store appropriately.
+//
+// TODO(kyle): do this in staged upgrades. That is, ensure the upgrade
+// process goes from version, version+1...current version.
+func migrateStore(data []byte) (Passwords, error) {
+	var versioned = struct {
+		Version int
+	}{}
+
+	err := json.Unmarshal(data, &versioned)
+	if err != nil {
+		return Passwords{}, err
+
+	}
+	switch v := versioned.Version; v {
+	// If no version is present, the Version field will be
+	// zero. Every format since v1 has included an integer
+	// version field, so this is an accurate fallback.
+	case 0:
+		var old map[string]*Record
+		err = json.Unmarshal(data, &old)
+		if err != nil {
+			errorf("Failed to open password file: %v", err)
+			os.Exit(1)
+		}
+		for k := range old {
+			if old[k].Timestamp == 0 {
+				old[k].Timestamp = time.Now().Unix()
+			}
+		}
+
+		fmt.Printf("Migrating from version 0 to version %d.\n", version)
+		passwords.Version = version
+		passwords.Timestamp = time.Now().Unix()
+		passwords.Store = old
+	default:
+		versionMigrator, ok := migrations[versioned.Version]
+		if !ok {
+			err = fmt.Errorf("invalid password store")
+			return Passwords{}, err
+		}
+		return versionMigrator(data)
+	}
+}
+
+// saveFile serialises and encrypts the password store, using the
+// crypto functions in crypto.go.
 func saveFile(fileName string, passwords Passwords) {
 	encoded, err := json.Marshal(passwords)
 	if err != nil {
 		errorf("Failed to serialise password store: %v", err)
 		os.Exit(1)
 	}
-	defer zero(encoded)
 
 	err = encryptFile(fileName, encoded)
+	zero(encoded)
 	if err != nil {
 		errorf("%v", err)
 		os.Exit(1)
 	}
 }
 
+/*
+The commands in password are implemented as functions that cover the entire scope of the command. That is, each command opens the file and decrypts the contents as needed, and encrypts / saves the file as needed.
+
+TODO(kyle): improve command handling such than an interactive mode might be enabled.
+*/
+
+// retrieveRecord looks up a record, displaying it appropriately.
 func retrieveRecord(fileName, name string, showMetadata, clipExport bool) {
 	passwords := openFile(fileName)
 	defer passwords.Zero()
@@ -142,6 +201,8 @@ func retrieveRecord(fileName, name string, showMetadata, clipExport bool) {
 	rec.Display(showMetadata, clipExport)
 }
 
+// listRecords displays a list of all the names of passwords stored in
+// this store.
 func listRecords(fileName string) {
 	passwords := openFile(fileName)
 	defer passwords.Zero()
@@ -153,7 +214,7 @@ func listRecords(fileName string) {
 
 	var names = make([]string, 0, len(passwords.Store))
 	fmt.Println("Names:")
-	for k, _ := range passwords.Store {
+	for k := range passwords.Store {
 		names = append(names, k)
 	}
 	sort.Strings(names)
@@ -163,6 +224,7 @@ func listRecords(fileName string) {
 	}
 }
 
+// removeRecord deletes the named record from the store.
 func removeRecord(fileName, name string) {
 	passwords := openFile(fileName)
 	defer passwords.Zero()
@@ -172,6 +234,7 @@ func removeRecord(fileName, name string) {
 	fmt.Println("Done.")
 }
 
+// removeMeta deletes metadata from the named record.
 func removeMeta(fileName, name string) {
 	passwords := openFile(fileName)
 	defer passwords.Zero()
@@ -183,7 +246,7 @@ func removeMeta(fileName, name string) {
 	}
 
 	var keys = make([]string, 0, len(rec.Metadata))
-	for k, _ := range rec.Metadata {
+	for k := range rec.Metadata {
 		keys = append(keys, k)
 	}
 	sort.Strings(keys)
@@ -206,6 +269,10 @@ func removeMeta(fileName, name string) {
 	saveFile(fileName, passwords)
 }
 
+// storeRecord adds a new password under the named record. If the
+// record exists, it must be explicitly overwritten. If the named
+// record does not exist, a new one is created. If the password store
+// doesn't exist, a new password store will be initialised.
 func storeRecord(fileName, name string, overWrite bool) {
 	var passwords = Passwords{}
 	defer passwords.Zero()
@@ -245,6 +312,9 @@ func storeRecord(fileName, name string, overWrite bool) {
 	saveFile(fileName, passwords)
 }
 
+// storeMany allows entering multiple name/password pairs to
+// facilitate adding multiple labels (e.g. for a new password
+// store). The same notes regarding storeRecord apply here.
 func storeMany(fileName string, overWrite bool) {
 	var passwords = Passwords{}
 	defer passwords.Zero()
@@ -295,6 +365,7 @@ func storeMany(fileName string, overWrite bool) {
 	saveFile(fileName, passwords)
 }
 
+// storeMeta adds metadata to the named record.
 func storeMeta(fileName, name string) {
 	passwords := openFile(fileName)
 	defer passwords.Zero()
@@ -343,6 +414,10 @@ func storeMeta(fileName, name string) {
 
 const pemLabel = "PASSWORD STORE"
 
+// exportStore dumps the secured password store in PEM format. The
+// store is never decrypted, and the same process could be
+// accomplished fairly easily with Unix text processing tools. It is
+// supplied as a convenience.
 func exportDatabase(filename, outFile string) {
 	data, err := ioutil.ReadFile(filename)
 	if err != nil {
@@ -368,7 +443,10 @@ func exportDatabase(filename, outFile string) {
 	fmt.Fprintf(out, "%s\n", string(pem.EncodeToMemory(p)))
 }
 
-func importDatabase(filename, inFile string) {
+// importStore takes a store exported as a PEM file and imports it by
+// checking the PEM type, decoding the body from base64, and writing
+// the resulting (still-encrypted) byte slice to disk.
+func importStore(filename, inFile string) {
 	var dataFile io.Reader
 	var err error
 	if inFile == "-" {
@@ -402,6 +480,10 @@ func importDatabase(filename, inFile string) {
 	}
 }
 
+// changePassword decrypts the password store, zeroises and nulls the
+// password, and stores the blob to disk. Nulling the password causes
+// encryptFile to prompt for a passphrase used to generate a new
+// encryption key.
 func changePassword(fileName string) {
 	blob, err := decryptFile(fileName)
 	if err != nil {
@@ -442,9 +524,9 @@ func main() {
 			os.Exit(1)
 		}
 		if *doExport {
-			exportDatabase(*fileName, flag.Arg(0))
+			exportStore(*fileName, flag.Arg(0))
 		} else {
-			importDatabase(*fileName, flag.Arg(0))
+			importStore(*fileName, flag.Arg(0))
 		}
 		return
 	} else if *list {
