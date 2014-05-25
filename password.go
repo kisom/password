@@ -116,7 +116,7 @@ func openFile(fileName string) Passwords {
 	return passwords
 }
 
-var migrations = map[int]func([]byte) (Password, error){}
+var migrations = map[int]func([]byte) (Passwords, error){}
 
 // migrateStore brings old stores to the current format. This isn't
 // particularly efficient, as the file is parsed twice more here
@@ -135,6 +135,8 @@ func migrateStore(data []byte) (Passwords, error) {
 		return Passwords{}, err
 
 	}
+
+	var passwords Passwords
 	switch v := versioned.Version; v {
 	// If no version is present, the Version field will be
 	// zero. Every format since v1 has included an integer
@@ -156,6 +158,7 @@ func migrateStore(data []byte) (Passwords, error) {
 		passwords.Version = version
 		passwords.Timestamp = time.Now().Unix()
 		passwords.Store = old
+		return passwords, nil
 	default:
 		versionMigrator, ok := migrations[versioned.Version]
 		if !ok {
@@ -418,7 +421,7 @@ const pemLabel = "PASSWORD STORE"
 // store is never decrypted, and the same process could be
 // accomplished fairly easily with Unix text processing tools. It is
 // supplied as a convenience.
-func exportDatabase(filename, outFile string) {
+func exportStore(filename, outFile string) {
 	data, err := ioutil.ReadFile(filename)
 	if err != nil {
 		errorf("%v", err)
