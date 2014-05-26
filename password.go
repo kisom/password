@@ -384,6 +384,7 @@ func storeMeta(fileName, name string) {
 			os.Exit(1)
 		}
 		rec.Password = password
+		passwords.Store[name] = rec
 		defer zero(password)
 	}
 
