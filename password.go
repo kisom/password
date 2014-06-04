@@ -285,6 +285,9 @@ func storeRecord(fileName, name string, overWrite bool) {
 		os.Exit(1)
 	} else if err == nil {
 		passwords = openFile(fileName)
+	} else {
+		passwords.Version = version
+		passwords.Store = map[string]*Record{}
 	}
 
 	rec, ok := passwords.Store[name]
