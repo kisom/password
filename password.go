@@ -187,9 +187,12 @@ func saveFile(fileName string, passwords Passwords) {
 }
 
 /*
-The commands in password are implemented as functions that cover the entire scope of the command. That is, each command opens the file and decrypts the contents as needed, and encrypts / saves the file as needed.
+The commands in password are implemented as functions that cover the
+entire scope of the command. That is, each command opens the file and
+decrypts the contents as needed, and encrypts / saves the file as needed.
 
-TODO(kyle): improve command handling such than an interactive mode might be enabled.
+TODO(kyle): improve command handling such than an interactive mode might
+be enabled.
 */
 
 // retrieveRecord looks up a record, displaying it appropriately.
@@ -487,6 +490,27 @@ func importStore(filename, inFile string) {
 	}
 }
 
+func mergeStores(database, filename string) {
+	fmt.Println("Opening password store.")
+	passwords := openFile(database)
+	tmpPassword := make([]byte, len(passphrase))
+	copy(tmpPassword, passphrase)
+	defer zero(tmpPassword)
+	zero(passphrase)
+	passphrase = nil
+	fmt.Println("Opening store to be merged.")
+	other := openFile(filename)
+	zero(passphrase)
+	passphrase = nil
+
+	accounts := len(passwords.Store)
+	(&passwords).Merge(&other)
+	passphrase = tmpPassword
+	fmt.Printf("%d new records added (no count of changed records provided).\n",
+		len(passwords.Store)-accounts)
+	saveFile(database, passwords)
+}
+
 // changePassword decrypts the password store, zeroises and nulls the
 // password, and stores the blob to disk. Nulling the password causes
 // encryptFile to prompt for a passphrase used to generate a new
@@ -520,6 +544,7 @@ func main() {
 	list := flag.Bool("l", false, "list passwords")
 	doExport := flag.Bool("export", false, "export password store in PEM format")
 	doImport := flag.Bool("import", false, "import password store from PEM format")
+	mergeFile := flag.String("merge", "", "merge the records in the named file")
 	multi := flag.Bool("multi", false, "enter multiple passwords")
 	meta := flag.Bool("m", false, "store metadata instead of passwords")
 	clip := flag.Bool("x", false, "show password in a format suitable for exporting to clipboard")
@@ -544,6 +569,9 @@ func main() {
 		return
 	} else if *multi {
 		storeMany(*fileName, *overWrite)
+		return
+	} else if *mergeFile != "" {
+		mergeStores(*fileName, *mergeFile)
 		return
 	} else if flag.NArg() != 1 {
 		errorf("please specify a single password to retrieve")
