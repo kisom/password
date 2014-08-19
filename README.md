@@ -1,6 +1,9 @@
 ## password
 ### a command line password manager
 
+**UPDATE**: this has been superceded by the tools in
+[cryptutils](https://github.com/kisom/cryptutils).
+
 This a personal password manager, written for me, that operates on the
 command line. It stores and retrieves passwords and optional metadata
 as well. By default, passwords are stored to `${HOME}/.passwords.db`
